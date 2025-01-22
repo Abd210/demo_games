@@ -1,70 +1,78 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
-class GameProvider with ChangeNotifier {
-  String _story =
-      "You wake up in a vast desert. In front of you, there is a dark cave and a lush oasis. What will you do?";
+class GameProvider extends ChangeNotifier {
+  // Our combined story
+  String _story = 'Welcome to the Survival Adventure! Make your first choice.';
   bool _isLoading = false;
 
-  // Use the same URL as Postman for local testing
-  final String apiUrl = "http://127.0.0.1:3000/game";
-  final String clearUrl = "http://127.0.0.1:3000/clear";
+  // Adjust these to match your Node server setup
+  final String _baseUrl = 'http://localhost:3000'; // server URL
+  final String _devKey = 'YOUR_SECRET_KEY';       // Must match SECRET_KEY in Node
 
   String get story => _story;
   bool get isLoading => _isLoading;
 
+  /// Submit a choice to /game
   Future<void> makeChoice(String choice) async {
     _isLoading = true;
     notifyListeners();
 
+    // Show the user's choice in the local story
+    _story += '\nYou: $choice\n';
+    notifyListeners();
+
     try {
       final response = await http.post(
-        Uri.parse(apiUrl),
+        Uri.parse('$_baseUrl/game'),
         headers: {
           'Content-Type': 'application/json',
+          'devKey': _devKey,
         },
-        body: jsonEncode({'choice': choice}),
+        body: json.encode({'choice': choice}),
       );
 
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _story = data['response'] ?? "Unexpected response from server.";
+        final data = json.decode(response.body);
+        final serverResponse = data['response'] as String;
+        // Append AI response
+        _story += '$serverResponse\n';
       } else {
-        _story = "Failed to get response. Status: ${response.statusCode}";
+        _story += '\n[Server Error: ${response.statusCode}]\n';
       }
-    } catch (error) {
-      print("Error connecting to the server: $error");
-      _story = "Error connecting to the server. Check your connection.";
+    } catch (e) {
+      _story += '\n[Network/Parsing error: $e]\n';
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
+  /// Clear the game by calling /clear
   Future<void> clearGame() async {
     _isLoading = true;
     notifyListeners();
 
+    _story = 'Clearing game...\n';
+    notifyListeners();
+
     try {
       final response = await http.post(
-        Uri.parse(clearUrl),
+        Uri.parse('$_baseUrl/clear'),
         headers: {
-          'Content-Type': 'application/json',
+          'devKey': _devKey,
         },
       );
 
       if (response.statusCode == 200) {
-        _story = "Game reset. You are back at the beginning.";
+        _story = 'Game has been reset. Start again.\n';
       } else {
-        _story = "Failed to reset the game.";
+        _story =
+            '\n[Server Error clearing: ${response.statusCode}]\n';
       }
-    } catch (error) {
-      print("Error connecting to the server: $error");
-      _story = "Error connecting to the server.";
+    } catch (e) {
+      _story += '\n[Error clearing: $e]\n';
     }
 
     _isLoading = false;
