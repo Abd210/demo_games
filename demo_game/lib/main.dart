@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'game_provider.dart';
-
+// need to fix the api speed
 void main() {
   runApp(const AdventureGameApp());
 }
